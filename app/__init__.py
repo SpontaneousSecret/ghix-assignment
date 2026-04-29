@@ -28,10 +28,10 @@ def create_app(config_class=Config) -> Flask:
     with app.app_context():
         db.create_all()
 
-    # Register blueprints (will be added in Part 2)
-    # from app.auth import auth_bp
-    # from app.plans import plans_bp
-    # app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    # app.register_blueprint(plans_bp, url_prefix='/api/plans')
+    # Register blueprints
+    from app.auth import auth_bp
+    from app.plans import plans_bp
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    app.register_blueprint(plans_bp, url_prefix='/api/plans')
 
     return app

@@ -1,0 +1,48 @@
+{
+  "destination": "Germany",
+  "role": "Senior Backend Engineer",
+  "visa_requirements": {
+    "type": "EU Blue Card",
+    "min_salary_threshold": 45552,
+    "currency": "EUR",
+    "sponsorship_available": true,
+    "processing_time_months": 3,
+    "requirements": [
+      "University degree in Computer Science or related field",
+      "Minimum 5 years of professional experience",
+      "Job offer from German employer",
+      "Proof of health insurance"
+    ]
+  },
+  "timeline": {
+    "min_months": 6,
+    "typical_months": 9,
+    "max_months": 12,
+    "breakdown": {
+      "job_search": "2-4 months",
+      "interview_process": "1-2 months",
+      "visa_processing": "2-3 months",
+      "relocation": "1 month"
+    }
+  },
+  "salary_data": {
+    "min": 55000,
+    "median": 75000,
+    "max": 95000,
+    "currency": "EUR",
+    "notes": "Berlin/Munich ranges, annual gross salary"
+  },
+  "cost_of_living": {
+    "monthly_rent_1br": 1200,
+    "monthly_expenses": 1500,
+    "currency": "EUR"
+  },
+  "market_demand": "high",
+  "language_requirement": "English (German is a plus)",
+  "remote_work_friendly": true,
+  "data_sources": [
+    "German Federal Employment Agency 2024",
+    "Stack Overflow Developer Survey 2024",
+    "Glassdoor Germany 2024"
+  ]
+}
