@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Career Relocation Planner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-size: 16px;
+            color: #666;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            margin-top: 10px;
+        }
+
+        .btn-logout {
+            background: #dc3545;
+        }
+
+        .error-msg {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .success-msg {
+            background: #efe;
+            border: 1px solid #cfc;
+            color: #3c3;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .warning-card {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+        }
+
+        .warning-card h4 {
+            color: #856404;
+            margin-bottom: 8px;
+        }
+
+        .warning-card p {
+            color: #856404;
+            margin: 0;
+        }
+
+        .confidence-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .badge-verified {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-estimated {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-placeholder {
+            background: #e2e3e5;
+            color: #6c757d;
+        }
+
+        .narrative-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            font-style: italic;
+            line-height: 1.6;
+        }
+
+        .action-steps {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .action-steps h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .action-steps ol {
+            margin-left: 20px;
+        }
+
+        .action-steps li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .plan-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .plan-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .plan-card h3 {
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .plan-card p {
+            color: #666;
+            margin: 4px 0;
+        }
+
+        .plan-meta {
+            font-size: 14px;
+            color: #999;
+            margin-top: 10px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .section-header h3 {
+            margin: 0;
+        }
+
+        .data-section {
+            margin-bottom: 25px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .nav-buttons button {
+            flex: 1;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌍 Career Relocation Planner</h1>
+            <p>Plan your international career move with data-driven insights</p>
+        </div>
+
+        <!-- AUTH VIEW -->
+        <div id="authView" class="view">
+            <div class="card">
+                <div class="tabs">
+                    <button class="tab active" onclick="switchAuthTab('login')">Login</button>
+                    <button class="tab" onclick="switchAuthTab('register')">Register</button>
+                </div>
+
+                <div id="authError"></div>
+                <div id="authSuccess"></div>
+
+                <!-- Login Form -->
+                <div id="loginForm" class="auth-form">
+                    <form onsubmit="handleLogin(event)">
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="loginEmail" required placeholder="you@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="loginPassword" required placeholder="Enter password">
+                        </div>
+                        <button type="submit" class="btn">Login</button>
+                    </form>
+                </div>
+
+                <!-- Register Form -->
+                <div id="registerForm" class="auth-form" style="display: none;">
+                    <form onsubmit="handleRegister(event)">
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="registerEmail" required placeholder="you@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="registerPassword" required placeholder="Minimum 6 characters">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm Password</label>
+                            <input type="password" id="registerPasswordConfirm" required placeholder="Re-enter password">
+                        </div>
+                        <button type="submit" class="btn">Register</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- GENERATE FORM VIEW -->
+        <div id="generateView" class="view">
+            <div class="nav-buttons">
+                <button class="btn btn-secondary" onclick="showView('savedPlans')">View Saved Plans</button>
+                <button class="btn btn-logout" onclick="handleLogout()">Logout</button>
+            </div>
+
+            <div class="card">
+                <h2 style="margin-bottom: 20px;">Generate Relocation Plan</h2>
+
+                <div id="generateError"></div>
+
+                <form onsubmit="handleGeneratePlan(event)">
+                    <div class="form-group">
+                        <label>Origin Country</label>
+                        <input type="text" id="origin" value="India" required placeholder="e.g., India, USA">
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Destination</label>
+                            <select id="destination" required>
+                                <option value="Germany" selected>Germany</option>
+                                <option value="UK">United Kingdom</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Target Role</label>
+                            <select id="targetRole" required>
+                                <option value="Senior Backend Engineer" selected>Senior Backend Engineer</option>
+                                <option value="Product Manager">Product Manager</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Salary Expectation</label>
+                            <input type="number" id="salaryExpectation" value="45000" required min="0" step="1000">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Currency</label>
+                            <select id="currency" required>
+                                <option value="EUR" selected>EUR (€)</option>
+                                <option value="GBP">GBP (£)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Timeline (months)</label>
+                            <input type="number" id="timelineMonths" value="12" required min="1" max="60">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Work Authorization</label>
+                            <select id="workAuth" required>
+                                <option value="Need visa sponsorship" selected>Needs Sponsorship</option>
+                                <option value="No constraint">No Constraint</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn" id="generateBtn">Generate Plan</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- PLAN RESULT VIEW -->
+        <div id="resultView" class="view">
+            <div class="nav-buttons">
+                <button class="btn btn-secondary" onclick="showView('generate')">New Plan</button>
+                <button class="btn btn-secondary" onclick="showView('savedPlans')">Saved Plans</button>
+                <button class="btn btn-logout" onclick="handleLogout()">Logout</button>
+            </div>
+
+            <div class="card">
+                <h2 id="resultTitle">Relocation Plan</h2>
+
+                <div id="resultWarnings"></div>
+
+                <div id="resultContent"></div>
+            </div>
+        </div>
+
+        <!-- SAVED PLANS VIEW -->
+        <div id="savedPlansView" class="view">
+            <div class="nav-buttons">
+                <button class="btn btn-secondary" onclick="showView('generate')">New Plan</button>
+                <button class="btn btn-logout" onclick="handleLogout()">Logout</button>
+            </div>
+
+            <div class="card">
+                <h2 style="margin-bottom: 20px;">Your Saved Plans</h2>
+                <div id="savedPlansList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API = 'http://localhost:5000';
+
+        // State
+        let currentView = 'auth';
+        let currentPlan = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('jwt_token');
+            if (token) {
+                showView('generate');
+            } else {
+                showView('auth');
+            }
+        });
+
+        // View Management
+        function showView(viewName) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+
+            switch(viewName) {
+                case 'auth':
+                    document.getElementById('authView').classList.add('active');
+                    break;
+                case 'generate':
+                    document.getElementById('generateView').classList.add('active');
+                    break;
+                case 'result':
+                    document.getElementById('resultView').classList.add('active');
+                    break;
+                case 'savedPlans':
+                    document.getElementById('savedPlansView').classList.add('active');
+                    loadSavedPlans();
+                    break;
+            }
+            currentView = viewName;
+        }
+
+        // Auth Tab Switching
+        function switchAuthTab(tab) {
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(t => t.classList.remove('active'));
+
+            if (tab === 'login') {
+                tabs[0].classList.add('active');
+                document.getElementById('loginForm').style.display = 'block';
+                document.getElementById('registerForm').style.display = 'none';
+            } else {
+                tabs[1].classList.add('active');
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('registerForm').style.display = 'block';
+            }
+
+            clearAuthMessages();
+        }
+
+        // Auth Functions
+        async function handleLogin(event) {
+            event.preventDefault();
+            clearAuthMessages();
+
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const response = await fetch(`${API}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    localStorage.setItem('jwt_token', data.token);
+                    showView('generate');
+                } else {
+                    showAuthError(data.message || 'Login failed');
+                }
+            } catch (error) {
+                showAuthError('Network error. Please try again.');
+            }
+        }
+
+        async function handleRegister(event) {
+            event.preventDefault();
+            clearAuthMessages();
+
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const passwordConfirm = document.getElementById('registerPasswordConfirm').value;
+
+            if (password !== passwordConfirm) {
+                showAuthError('Passwords do not match');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API}/api/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    localStorage.setItem('jwt_token', data.token);
+                    showView('generate');
+                } else {
+                    showAuthError(data.message || 'Registration failed');
+                }
+            } catch (error) {
+                showAuthError('Network error. Please try again.');
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('jwt_token');
+            showView('auth');
+        }
+
+        function showAuthError(message) {
+            document.getElementById('authError').innerHTML = `<div class="error-msg">${message}</div>`;
+        }
+
+        function showAuthSuccess(message) {
+            document.getElementById('authSuccess').innerHTML = `<div class="success-msg">${message}</div>`;
+        }
+
+        function clearAuthMessages() {
+            document.getElementById('authError').innerHTML = '';
+            document.getElementById('authSuccess').innerHTML = '';
+        }
+
+        // Generate Plan
+        async function handleGeneratePlan(event) {
+            event.preventDefault();
+
+            const generateBtn = document.getElementById('generateBtn');
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Generating...';
+
+            document.getElementById('generateError').innerHTML = '';
+
+            const token = localStorage.getItem('jwt_token');
+
+            const planData = {
+                origin: document.getElementById('origin').value,
+                destination: document.getElementById('destination').value,
+                target_role: document.getElementById('targetRole').value,
+                salary_expectation: parseFloat(document.getElementById('salaryExpectation').value),
+                currency: document.getElementById('currency').value,
+                timeline_months: parseInt(document.getElementById('timelineMonths').value),
+                work_auth_constraint: document.getElementById('workAuth').value
+            };
+
+            try {
+                const response = await fetch(`${API}/api/plans/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(planData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentPlan = data.plan;
+                    displayPlanResult(data.plan, data.data_confidence);
+                    showView('result');
+                } else {
+                    if (response.status === 401) {
+                        handleLogout();
+                    } else {
+                        document.getElementById('generateError').innerHTML =
+                            `<div class="error-msg">${data.message || 'Failed to generate plan'}</div>`;
+                    }
+                }
+            } catch (error) {
+                document.getElementById('generateError').innerHTML =
+                    `<div class="error-msg">Network error. Please try again.</div>`;
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = 'Generate Plan';
+            }
+        }
+
+        // Display Plan Result
+        function displayPlanResult(plan, dataConfidence) {
+            const title = `${plan.origin} → ${plan.destination}: ${plan.target_role}`;
+            document.getElementById('resultTitle').textContent = title;
+
+            // Warnings
+            const warnings = plan.plan.warnings || [];
+            const warningsHtml = warnings.map(warning => `
+                <div class="warning-card">
+                    <h4>⚠️ Warning</h4>
+                    <p>${warning}</p>
+                </div>
+            `).join('');
+            document.getElementById('resultWarnings').innerHTML = warningsHtml;
+
+            // Data Confidence Badges
+            const confidenceBadge = (available) => {
+                if (available) {
+                    return '<span class="confidence-badge badge-verified">✓ Verified</span>';
+                } else {
+                    return '<span class="confidence-badge badge-placeholder">○ Unavailable</span>';
+                }
+            };
+
+            // Build content
+            const content = `
+                <div class="data-section">
+                    <div class="section-header">
+                        <h3>Eligibility</h3>
+                        ${confidenceBadge(dataConfidence.visa_data_available)}
+                    </div>
+                    <p><strong>Visa Type:</strong> ${plan.plan.eligibility.visa_type}</p>
+                    <p><strong>Sponsorship Required:</strong> ${plan.plan.eligibility.sponsorship_required ? 'Yes' : 'No'}</p>
+                    <p><strong>Minimum Salary Threshold:</strong> ${plan.plan.eligibility.threshold_currency} ${plan.plan.eligibility.min_salary_threshold.toLocaleString()}</p>
+                </div>
+
+                <div class="data-section">
+                    <div class="section-header">
+                        <h3>Timeline</h3>
+                        ${confidenceBadge(dataConfidence.timeline_data_available)}
+                    </div>
+                    <p><strong>Your Timeline:</strong> ${plan.plan.timeline.user_timeline_months} months</p>
+                    <p><strong>Typical Timeline:</strong> ${plan.plan.timeline.typical_timeline_months} months</p>
+                    <p><strong>Minimum Required:</strong> ${plan.plan.timeline.min_timeline_months} months</p>
+                </div>
+
+                <div class="data-section">
+                    <div class="section-header">
+                        <h3>Salary Analysis</h3>
+                        ${confidenceBadge(dataConfidence.salary_data_available)}
+                    </div>
+                    <p><strong>Your Expectation:</strong> ${plan.plan.salary_analysis.currency} ${plan.plan.salary_analysis.user_expectation.toLocaleString()}</p>
+                    <p><strong>Market Range:</strong> ${plan.plan.salary_analysis.market_range.currency} ${plan.plan.salary_analysis.market_range.min.toLocaleString()} - ${plan.plan.salary_analysis.market_range.max.toLocaleString()}</p>
+                    <p><strong>Market Median:</strong> ${plan.plan.salary_analysis.market_range.currency} ${plan.plan.salary_analysis.market_range.median.toLocaleString()}</p>
+                </div>
+
+                <div class="action-steps">
+                    <h3>Action Steps</h3>
+                    <ol>
+                        <li><strong>Job Search:</strong> ${plan.plan.timeline.breakdown.job_search || 'Start searching'}</li>
+                        <li><strong>Interview Process:</strong> ${plan.plan.timeline.breakdown.interview_process || 'Prepare for interviews'}</li>
+                        <li><strong>Visa Processing:</strong> ${plan.plan.timeline.breakdown.visa_processing || 'Apply for visa'}</li>
+                        <li><strong>Relocation:</strong> ${plan.plan.timeline.breakdown.relocation || 'Plan your move'}</li>
+                    </ol>
+                </div>
+
+                <h3>Expert Analysis</h3>
+                <div class="narrative-box">
+                    ${plan.plan.narrative}
+                </div>
+
+                <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <p style="margin: 0; color: #666;"><strong>Generated:</strong> ${new Date(plan.generated_at).toLocaleString()}</p>
+                    <p style="margin: 5px 0 0 0; color: #666;"><strong>Overall Confidence:</strong> ${dataConfidence.overall_confidence.toUpperCase()}</p>
+                </div>
+            `;
+
+            document.getElementById('resultContent').innerHTML = content;
+        }
+
+        // Load Saved Plans
+        async function loadSavedPlans() {
+            const token = localStorage.getItem('jwt_token');
+            const listDiv = document.getElementById('savedPlansList');
+
+            listDiv.innerHTML = '<div class="loading">Loading...</div>';
+
+            try {
+                const response = await fetch(`${API}/api/plans`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    if (data.plans.length === 0) {
+                        listDiv.innerHTML = `
+                            <div class="empty-state">
+                                <p style="font-size: 18px;">No saved plans yet</p>
+                                <p>Generate your first relocation plan to get started!</p>
+                            </div>
+                        `;
+                    } else {
+                        const plansHtml = data.plans.map(plan => `
+                            <div class="plan-card" onclick="loadPlanDetail(${plan.id})">
+                                <h3>${plan.destination}: ${plan.target_role}</h3>
+                                <p><strong>From:</strong> ${plan.origin}</p>
+                                <p><strong>Salary:</strong> ${plan.currency} ${plan.salary_expectation.toLocaleString()}</p>
+                                <p><strong>Timeline:</strong> ${plan.timeline_months} months</p>
+                                <div class="plan-meta">
+                                    Generated on ${new Date(plan.generated_at).toLocaleDateString()}
+                                </div>
+                            </div>
+                        `).join('');
+
+                        listDiv.innerHTML = plansHtml;
+                    }
+                } else {
+                    if (response.status === 401) {
+                        handleLogout();
+                    } else {
+                        listDiv.innerHTML = '<div class="error-msg">Failed to load plans</div>';
+                    }
+                }
+            } catch (error) {
+                listDiv.innerHTML = '<div class="error-msg">Network error</div>';
+            }
+        }
+
+        // Load Plan Detail
+        async function loadPlanDetail(planId) {
+            const token = localStorage.getItem('jwt_token');
+
+            try {
+                const response = await fetch(`${API}/api/plans/${planId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentPlan = data.plan;
+                    displayPlanResult(data.plan, data.plan.data_confidence);
+                    showView('result');
+                } else {
+                    if (response.status === 401) {
+                        handleLogout();
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load plan:', error);
+            }
+        }
+    </script>
+</body>
+</html>
