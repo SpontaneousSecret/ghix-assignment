@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 from app.models import db
 from app.config import Config
 
@@ -17,6 +18,9 @@ def create_app(config_class=Config) -> Flask:
 
     # Load configuration
     app.config.from_object(config_class)
+
+    # Enable CORS for frontend (localhost:8080)
+    CORS(app, origins=["http://localhost:8080", "http://127.0.0.1:8080"])
 
     # Initialize SQLAlchemy with app
     db.init_app(app)

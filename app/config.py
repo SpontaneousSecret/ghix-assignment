@@ -6,7 +6,7 @@ class Config:
 
     # SQLAlchemy Configuration
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'instance', 'career_relocation.db')
+        'postgresql+psycopg://sujalgupta@localhost:5432/career_relocation'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False  # Set to True for SQL query debugging
 
@@ -53,5 +53,6 @@ class ProductionConfig(Config):
 class TestingConfig(Config):
     """Testing configuration."""
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or \
+        'postgresql+psycopg://sujalgupta@localhost:5432/career_relocation_test'
     BCRYPT_LOG_ROUNDS = 4  # Faster for tests

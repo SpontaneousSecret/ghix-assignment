@@ -8,16 +8,41 @@ AI-powered international career relocation planning with deterministic validatio
 # 1. Install dependencies
 pip install -r requirements.txt
 
-# 2. (Optional) Set Gemini API key for AI narratives
-export GEMINI_API_KEY="your-api-key-here"
+# 2. Start PostgreSQL and create the database
+createdb career_relocation
 
-# 3. Start the server
+# 3. Set environment variables (or create a .env file)
+GROQ_API_KEY=your-groq-api-key
+JWT_SECRET_KEY=your-secret-jwt-key
+SECRET_KEY=your-flask-secret-key
+DATABASE_URL=postgresql+psycopg://youruser@localhost:5432/career_relocation
+
+# 4. Start the server
 python3 run.py
 ```
 
-Server runs on http://localhost:8000
+Server runs on http://localhost:8006
 
-Frontend: Open `index.html` in browser or serve with `python3 -m http.server 8080`
+Frontend: open `index.html` directly or serve with `python3 -m http.server 8080`
+
+---
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GROQ_API_KEY` | Optional | Groq API key for AI narratives. Falls back to template narrative if absent. |
+| `DATABASE_URL` | Optional | PostgreSQL connection string. Defaults to local `career_relocation` DB. |
+| `JWT_SECRET_KEY` | Optional | JWT signing secret. Defaults to dev key (change in production). |
+| `SECRET_KEY` | Optional | Flask secret key. Defaults to dev key (change in production). |
+
+`.env` file example:
+```
+GROQ_API_KEY=gsk_...
+DATABASE_URL=postgresql+psycopg://user@localhost:5432/career_relocation
+JWT_SECRET_KEY=change-me-in-production
+SECRET_KEY=change-me-in-production
+```
 
 ---
 
@@ -29,18 +54,18 @@ Frontend: Open `index.html` in browser or serve with `python3 -m http.server 808
 
 ```bash
 # Register user
-curl -X POST http://localhost:8000/api/auth/register \
+curl -X POST http://localhost:8006/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"scenario_a@test.com","password":"password123"}'
 
-# Save the token from response, then generate plan
-curl -X POST http://localhost:8000/api/auth/login \
+# Login and save token
+curl -X POST http://localhost:8006/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"scenario_a@test.com","password":"password123"}' \
   | jq -r '.token' > /tmp/token_a.txt
 
 # Generate Plan A
-curl -X POST http://localhost:8000/api/plans/generate \
+curl -X POST http://localhost:8006/api/plans/generate \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(cat /tmp/token_a.txt)" \
   -d '{
@@ -67,20 +92,12 @@ curl -X POST http://localhost:8000/api/plans/generate \
 **Expected behavior**: No warnings (salary exceeds threshold), different visa type
 
 ```bash
-# Register different user
-curl -X POST http://localhost:8000/api/auth/register \
+curl -X POST http://localhost:8006/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"scenario_b@test.com","password":"password123"}' \
   | jq -r '.token' > /tmp/token_b.txt
 
-# Or login if already registered
-curl -X POST http://localhost:8000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"scenario_b@test.com","password":"password123"}' \
-  | jq -r '.token' > /tmp/token_b.txt
-
-# Generate Plan B
-curl -X POST http://localhost:8000/api/plans/generate \
+curl -X POST http://localhost:8006/api/plans/generate \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $(cat /tmp/token_b.txt)" \
   -d '{
@@ -99,7 +116,7 @@ curl -X POST http://localhost:8000/api/plans/generate \
 - `plan.plan.warnings` = [] (empty array)
 - `plan.plan.eligibility.visa_type` = "Skilled Worker Visa"
 - `plan.plan.eligibility.min_salary_threshold` = 38700
-- `plan.plan.timeline.typical_timeline_months` = 8 (matches user input)
+- `plan.plan.timeline.typical_timeline_months` = 8
 
 ---
 
@@ -146,6 +163,8 @@ Example: `data/canada_software_engineer.json`
 
 **No code changes required** — restart the server and the new destination is available.
 
+Destinations without a JSON file still work: the app uses global estimates and marks data as "Estimated" rather than "Verified".
+
 ---
 
 ## API Endpoints
@@ -160,7 +179,7 @@ Example: `data/canada_software_engineer.json`
 - Request: `{"email": "user@example.com", "password": "password123"}`
 - Response: `{"token": "jwt...", "user": {...}}`
 
-### Plans (Protected - Requires JWT)
+### Plans (Protected — requires JWT)
 
 **POST /api/plans/generate**
 - Headers: `Authorization: Bearer <token>`
@@ -182,13 +201,13 @@ Example: `data/canada_software_engineer.json`
 ### Critical Design Rules
 
 1. **LLM is NEVER used for business logic**
-   - All eligibility, salary, timeline checks are deterministic (app/data_loader.py)
+   - All eligibility, salary, timeline checks are deterministic (`app/data_loader.py`)
    - LLM only generates narrative summaries after checks pass
    - See DECISIONS.md for rationale
 
 2. **All responses include data_confidence**
    - Tracks per-field data availability
-   - Frontend displays badges (green = verified, gray = unavailable)
+   - Frontend displays "✓ Verified" (specific data), "~ Estimated" (generic fallback), or "○ Unavailable"
 
 3. **Adding destination = adding JSON file**
    - Zero code changes required
@@ -196,28 +215,10 @@ Example: `data/canada_software_engineer.json`
 
 ### Tech Stack
 
-- **Backend**: Flask, SQLAlchemy, SQLite, PyJWT, bcrypt
+- **Backend**: Flask, SQLAlchemy, PostgreSQL, PyJWT, bcrypt
 - **Frontend**: Vanilla JavaScript, HTML5, CSS3
-- **LLM**: Gemini Flash (free tier, REST API)
-- **Database**: SQLite (development), Postgres (production)
-
----
-
-## Testing
-
-**Automated tests:**
-```bash
-python3 test_api.py
-```
-
-**Manual testing:**
-```bash
-# Start server
-python3 run.py
-
-# Open frontend
-open index.html  # or http://localhost:8080/index.html
-```
+- **LLM**: Groq — llama-3.3-70b-versatile (free tier, REST API)
+- **Database**: PostgreSQL (psycopg driver)
 
 ---
 
@@ -225,7 +226,6 @@ open index.html  # or http://localhost:8080/index.html
 
 - **DECISIONS.md** - Technical decisions, trade-offs, scale limitations
 - **SETUP.md** - Detailed setup guide, troubleshooting
-- **PROJECT_SUMMARY.md** - Complete project overview
 
 ---
 

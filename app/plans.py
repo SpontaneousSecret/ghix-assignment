@@ -5,10 +5,10 @@ All endpoints require JWT authentication.
 from flask import Blueprint, request, jsonify, g
 from app.auth import require_auth
 from app.data_loader import (
-    check_missing_data,
+    check_visa_minimum_timeline,
     check_timeline_conflict,
     check_salary_shortfall,
-    get_destination_data
+    get_destination_data_or_generic
 )
 from app.llm import generate_narrative
 from app.database import (
@@ -97,53 +97,42 @@ def generate_plan():
             'message': 'salary_expectation must be a number and timeline_months must be an integer'
         }), 400
 
-    # STEP 1: Check for missing data (DETERMINISTIC - NO LLM)
-    missing_data_error = check_missing_data(destination, target_role)
+    # STEP 1: Load destination data (generic fallback if no JSON file exists)
+    destination_data, is_generic = get_destination_data_or_generic(destination, target_role)
 
-    if missing_data_error:
-        # Return structured error immediately - NO LLM CALL
-        return jsonify({
-            'error': missing_data_error['error'],
-            'message': missing_data_error['message'],
-            'destination': missing_data_error['destination'],
-            'role': missing_data_error['role'],
-            'available_destinations': missing_data_error['available_destinations'],
-            'data_confidence': {
-                'salary_data_available': False,
-                'timeline_data_available': False,
-                'visa_data_available': False,
-                'overall_confidence': 'none'
-            }
-        }), 404
-
-    # STEP 2: Load destination data
-    destination_data = get_destination_data(destination, target_role)
-
-    # STEP 3: Run deterministic checks and collect warnings
+    # STEP 2: Run deterministic checks and collect warnings
     warnings = []
 
-    # Check timeline conflict
-    route_min_months = destination_data.get('timeline', {}).get('min_months', 0)
-    timeline_warning = check_timeline_conflict(timeline_months, route_min_months)
-    if timeline_warning:
-        warnings.append(timeline_warning)
+    # Always check: visa processing takes at least 6 months globally
+    visa_min_warning = check_visa_minimum_timeline(timeline_months)
+    if visa_min_warning:
+        warnings.append(visa_min_warning)
 
-    # Check salary shortfall
+    # If we have specific route data, also check route-specific timeline minimum
+    route_min_months = destination_data.get('timeline', {}).get('min_months', 0)
+    if not is_generic:
+        timeline_warning = check_timeline_conflict(timeline_months, route_min_months)
+        if timeline_warning and not visa_min_warning:
+            warnings.append(timeline_warning)
+
+    # Check salary shortfall (only when specific visa data exists)
     visa_threshold = destination_data.get('visa_requirements', {}).get('min_salary_threshold', 0)
     visa_currency = destination_data.get('visa_requirements', {}).get('currency', currency)
 
-    # Only check if currencies match
-    if currency.upper() == visa_currency.upper():
+    if visa_threshold and currency.upper() == visa_currency.upper():
         salary_warning = check_salary_shortfall(salary_expectation, visa_threshold, currency)
         if salary_warning:
             warnings.append(salary_warning)
 
     # Build data confidence
+    has_salary_data = bool(destination_data.get('salary_data'))
+    has_visa_data = bool(destination_data.get('visa_requirements'))
+    has_timeline_data = not is_generic
     data_confidence = {
-        'salary_data_available': 'salary_data' in destination_data,
-        'timeline_data_available': 'timeline' in destination_data,
-        'visa_data_available': 'visa_requirements' in destination_data,
-        'overall_confidence': 'high' if not warnings else 'medium'
+        'salary_data_available': has_salary_data,
+        'timeline_data_available': has_timeline_data,
+        'visa_data_available': has_visa_data,
+        'overall_confidence': 'low' if is_generic else ('medium' if warnings else 'high')
     }
 
     # STEP 4: Call LLM for narrative generation (ONLY after deterministic checks)

@@ -1,11 +1,14 @@
 """
 LLM integration for narrative generation.
 CRITICAL: LLM is ONLY called for narrative generation, NEVER for deterministic checks.
-Uses Gemini Flash free tier via REST API (not SDK).
+Uses Groq API via REST (not SDK) with llama-3.3-70b-versatile.
 """
 import os
 import requests
 from typing import Dict, Any, List
+
+GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
+GROQ_MODEL = 'llama-3.3-70b-versatile'
 
 
 def generate_narrative(
@@ -20,7 +23,7 @@ def generate_narrative(
     warnings: List[str]
 ) -> str:
     """
-    Generate a narrative summary using Gemini Flash API.
+    Generate a narrative summary using Groq API.
     This is ONLY called AFTER all deterministic checks have passed.
 
     Args:
@@ -37,16 +40,14 @@ def generate_narrative(
     Returns:
         Generated narrative string
     """
-    api_key = os.environ.get('GEMINI_API_KEY')
+    api_key = os.environ.get('GROQ_API_KEY')
 
-    # If no API key, return a simple fallback narrative
     if not api_key:
         return _generate_fallback_narrative(
             origin, destination, target_role, salary_expectation,
             currency, timeline_months, destination_data, warnings
         )
 
-    # Construct prompt with all deterministic information
     prompt = _build_prompt(
         origin, destination, target_role, salary_expectation,
         currency, timeline_months, work_auth_constraint,
@@ -54,43 +55,37 @@ def generate_narrative(
     )
 
     try:
-        # Call Gemini Flash API via REST
-        url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}'
-
-        payload = {
-            'contents': [{
-                'parts': [{
-                    'text': prompt
-                }]
-            }],
-            'generationConfig': {
-                'temperature': 0.7,
-                'maxOutputTokens': 500,
-            }
+        headers = {
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json',
         }
 
-        response = requests.post(url, json=payload, timeout=10)
+        payload = {
+            'model': GROQ_MODEL,
+            'messages': [{'role': 'user', 'content': prompt}],
+            'temperature': 0.7,
+            'max_tokens': 500,
+        }
+
+        response = requests.post(GROQ_API_URL, json=payload, headers=headers, timeout=10)
+        print(f"LLM: Groq status={response.status_code}")
         response.raise_for_status()
 
         result = response.json()
 
-        # Extract narrative from response
-        if 'candidates' in result and len(result['candidates']) > 0:
-            candidate = result['candidates'][0]
-            if 'content' in candidate and 'parts' in candidate['content']:
-                parts = candidate['content']['parts']
-                if len(parts) > 0 and 'text' in parts[0]:
-                    return parts[0]['text'].strip()
+        if 'choices' in result and len(result['choices']) > 0:
+            narrative = result['choices'][0]['message']['content'].strip()
+            print(f"LLM: Groq returned {len(narrative)} chars")
+            return narrative
 
-        # Fallback if response format unexpected
+        print(f"LLM: unexpected response shape: {list(result.keys())}")
         return _generate_fallback_narrative(
             origin, destination, target_role, salary_expectation,
             currency, timeline_months, destination_data, warnings
         )
 
     except Exception as e:
-        # On any error, return fallback narrative
-        print(f"LLM API error: {str(e)}")
+        print(f"LLM API error: {type(e).__name__}: {str(e)}")
         return _generate_fallback_narrative(
             origin, destination, target_role, salary_expectation,
             currency, timeline_months, destination_data, warnings
@@ -108,46 +103,37 @@ def _build_prompt(
     destination_data: Dict[str, Any],
     warnings: List[str]
 ) -> str:
-    """
-    Build prompt for LLM with all deterministic information.
-
-    Returns:
-        Formatted prompt string
-    """
     visa_info = destination_data.get('visa_requirements', {})
     salary_data = destination_data.get('salary_data', {})
     timeline_data = destination_data.get('timeline', {})
 
-    prompt = f"""You are a career relocation advisor. Generate a concise, professional narrative (3-4 paragraphs) for a relocation plan based on the following VERIFIED information:
+    visa_currency = visa_info.get('currency', currency)
+    salary_currency = salary_data.get('currency', currency)
+    visa_threshold = visa_info.get('min_salary_threshold', 0)
+    salary_median = salary_data.get('median', 0)
+    salary_min = salary_data.get('min', 0)
+    salary_max = salary_data.get('max', 0)
+    typical_months = timeline_data.get('typical_months', 0)
+    processing_months = visa_info.get('processing_time_months', 0)
 
-ORIGIN: {origin}
-DESTINATION: {destination}
-TARGET ROLE: {target_role}
-SALARY EXPECTATION: {currency} {salary_expectation:,.2f}
-TIMELINE: {timeline_months} months
-WORK AUTHORIZATION: {work_auth_constraint}
+    issues_block = (
+        "The system has flagged the following issues with this plan:\n" +
+        "\n".join(f"- {w}" for w in warnings)
+    ) if warnings else "The system found no blockers with this plan."
 
-VISA INFORMATION:
-- Type: {visa_info.get('type', 'N/A')}
-- Minimum Salary Threshold: {visa_info.get('currency', currency)} {visa_info.get('min_salary_threshold', 0):,.2f}
-- Sponsorship Available: {visa_info.get('sponsorship_available', False)}
-- Processing Time: {visa_info.get('processing_time_months', 0)} months
+    prompt = f"""You are an experienced international career relocation advisor. A candidate has submitted a relocation plan and you need to give them honest, personalised advice on whether it is realistic and what they should adjust.
 
-MARKET DATA:
-- Salary Range: {salary_data.get('currency', currency)} {salary_data.get('min', 0):,.0f} - {salary_data.get('max', 0):,.0f}
-- Median: {salary_data.get('currency', currency)} {salary_data.get('median', 0):,.0f}
-- Typical Timeline: {timeline_data.get('typical_months', 0)} months
+Here is everything you know about their plan:
 
-WARNINGS:
-{chr(10).join(f'- {w}' for w in warnings) if warnings else '- None'}
+The candidate is moving from {origin} to {destination} for a {target_role} role. They expect a salary of {currency} {salary_expectation:,.0f} and want to complete the move within {timeline_months} months. Their work authorisation situation: {work_auth_constraint if work_auth_constraint else 'not specified'}.
 
-Generate a narrative that:
-1. Summarizes the relocation opportunity
-2. Highlights key requirements and timeline
-3. Addresses any warnings if present
-4. Provides encouraging but realistic guidance
+The relevant visa is the {visa_info.get('type', 'local work visa')}. It requires a minimum salary of {visa_currency} {visa_threshold:,.0f} and employer sponsorship {"is available" if visa_info.get('sponsorship_available') else "is not commonly available"} in this market. Visa processing alone takes {processing_months} months.
 
-Keep it concise, professional, and actionable."""
+The current market for {target_role} roles in {destination} pays between {salary_currency} {salary_min:,.0f} and {salary_currency} {salary_max:,.0f}, with a median of {salary_currency} {salary_median:,.0f}. The typical end-to-end relocation timeline for this route is {typical_months} months.
+
+{issues_block}
+
+Write a 3–4 paragraph advisory response directly to the candidate (use "you"/"your"). Do not repeat back raw numbers they already know — instead interpret what the numbers mean for their situation. Be direct about what needs to change if anything does. If the plan looks solid, say so and explain why. Close with the single most important next step they should take right now. Keep the tone professional but human — like advice from a senior colleague who has done this before."""
 
     return prompt
 

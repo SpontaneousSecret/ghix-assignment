@@ -6,60 +6,65 @@ import json
 import os
 from typing import Optional, Dict, Any
 
+VISA_PROCESSING_MIN_MONTHS = 6
+
 
 def get_destination_data(destination: str, role: str) -> Optional[Dict[str, Any]]:
     """
     Load destination and role-specific data from JSON file.
-    File naming convention: data/{destination}_{role}.json (lowercase, underscores)
-
-    Args:
-        destination: Destination country (e.g., "Germany", "UK")
-        role: Target role (e.g., "Senior Backend Engineer", "Product Manager")
-
-    Returns:
-        Dictionary with destination data or None if file not found
+    Returns None if no file exists — callers should use get_destination_data_or_generic().
     """
-    # Normalize to lowercase and replace spaces with underscores
     destination_normalized = destination.lower().replace(' ', '_')
     role_normalized = role.lower().replace(' ', '_')
 
-    # Construct file path
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     file_path = os.path.join(base_dir, 'data', f'{destination_normalized}_{role_normalized}.json')
 
     try:
         with open(file_path, 'r') as f:
-            data = json.load(f)
-        return data
-    except FileNotFoundError:
-        return None
-    except json.JSONDecodeError:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
         return None
 
 
-def check_missing_data(destination: str, role: str) -> Optional[Dict[str, Any]]:
+def get_destination_data_or_generic(destination: str, role: str) -> tuple[Dict[str, Any], bool]:
     """
-    Check if destination and role data exists.
-    This is a DETERMINISTIC check - no LLM involved.
-
-    Args:
-        destination: Destination country
-        role: Target role
+    Load destination data from JSON, or return generic defaults if no file exists.
 
     Returns:
-        Structured error dict if data is missing, None if data exists
+        (data dict, is_generic: bool) — is_generic=True means no specific data was found
     """
     data = get_destination_data(destination, role)
+    if data is not None:
+        return data, False
 
-    if data is None:
-        return {
-            'error': 'missing_data',
-            'message': f'No data available for {role} in {destination}',
-            'destination': destination,
-            'role': role,
-            'available_destinations': _get_available_destinations()
-        }
+    generic = {
+        'destination': destination,
+        'role': role,
+        'visa_requirements': {},
+        'timeline': {
+            'min_months': VISA_PROCESSING_MIN_MONTHS,
+            'typical_months': 12,
+            'max_months': 24,
+            'breakdown': {}
+        },
+        'salary_data': {},
+        'cost_of_living': {}
+    }
+    return generic, True
 
+
+def check_visa_minimum_timeline(user_months: int) -> Optional[str]:
+    """
+    Always-on check: visa processing takes at minimum 6 months globally.
+    Returns a warning if the user's timeline is below that.
+    """
+    if user_months < VISA_PROCESSING_MIN_MONTHS:
+        return (
+            f'Timeline too short: Visa processing alone typically takes a minimum of '
+            f'{VISA_PROCESSING_MIN_MONTHS} months in any country. Your requested timeline of '
+            f'{user_months} month(s) is likely not achievable.'
+        )
     return None
 
 

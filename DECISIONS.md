@@ -33,15 +33,15 @@
 - Future: Would add Flask-Limiter with Redis backend when API becomes public-facing
 
 **PostgreSQL**
-- Skipped: Used SQLite instead
-- Reason: Zero-configuration deployment for demo; avoids database server setup
-- Trade-off: Write concurrency limitations (see "Scale Assumption" below)
-- Future: Migrate to Postgres when concurrent user load exceeds ~10-20 simultaneous plan generations
+- Used: PostgreSQL via psycopg driver (not SQLite)
+- Reason: Concurrent write support from the start; avoids the SQLite write-lock issue described in Section 5
+- Trade-off: Requires a running Postgres instance vs. zero-config SQLite
+- Config: `DATABASE_URL` env var; defaults to local `career_relocation` database
 
 **Streaming LLM Responses**
-- Skipped: Single-shot API calls to Gemini Flash
+- Skipped: Single-shot API calls to Groq
 - Reason: REST API simplicity; streaming adds complexity (WebSockets or SSE) and state management
-- Trade-off: User waits 2-5 seconds for complete response vs. seeing progressive updates
+- Trade-off: User waits ~1 second for complete response (Groq is fast enough that streaming adds little UX value at 500 tokens)
 - Future: Would implement Server-Sent Events (SSE) if narrative length increases significantly
 
 ---
@@ -141,57 +141,66 @@ data_confidence = {
 
 ### Frontend: Visual Badges (index.html)
 
+Three badge states based on `overall_confidence` and per-field flags:
+
 ```javascript
+const isEstimated = dataConfidence.overall_confidence === 'low';
 const confidenceBadge = (available) => {
-    if (available) {
-        return '<span class="badge-verified">✓ Verified</span>';  // Green
-    } else {
-        return '<span class="badge-placeholder">○ Unavailable</span>';  // Gray
-    }
+    if (available)      return '✓ Verified';   // specific JSON data exists
+    if (isEstimated)    return '~ Estimated';  // generic fallback in use
+    return              '○ Unavailable';       // field missing within known route
 };
 ```
 
+**Why three states, not two:**
+- "Unavailable" implied data was missing due to an error
+- "Estimated" is more honest: global defaults were used, not verified local data
+- An info banner also appears when `overall_confidence === 'low'` directing users to supported routes
+
 **User sees confidence next to each section:**
-- Eligibility section: Shows visa_data_available badge
-- Timeline section: Shows timeline_data_available badge
-- Salary section: Shows salary_data_available badge
+- Eligibility section: `visa_data_available`
+- Timeline section: `timeline_data_available`
+- Salary section: `salary_data_available`
 
 ### Why This Matters
 
 Users can **make informed decisions** knowing which parts of their plan are data-backed vs. estimated:
-- Green badge = "This threshold is from official visa requirements"
-- Gray badge = "We don't have salary data for this role; use as rough guidance"
+- ✓ Verified = "This threshold is from official visa requirements"
+- ~ Estimated = "No specific data for this route; figures are global defaults"
 
 ---
 
-## 4. LLM Choice: Gemini Flash Free Tier
+## 4. LLM Choice: Groq (llama-3.3-70b-versatile)
 
-### Why Gemini Flash
+### Why Groq
 
 1. **Zero Cost**
-   - Free tier: 15 requests/minute, 1 million tokens/day
-   - MVP budget: $0 vs. GPT-4 ($0.03/1K tokens)
+   - Free tier: generous rate limits for development/demo use
+   - MVP budget: $0
    - Enables free demo deployment
 
 2. **Speed**
-   - Flash model: ~2-3 second responses
-   - Acceptable UX for narrative generation
-   - Faster than GPT-3.5-turbo for this use case
+   - Groq's LPU inference: ~0.5-1 second responses (faster than Gemini Flash)
+   - Best-in-class latency for narrative generation
+   - Noticeably snappier UX than alternatives
 
 3. **REST API Simplicity**
+   - OpenAI-compatible `/chat/completions` endpoint
    - Direct HTTP POST, no SDK required
-   - Easy to swap providers (prompt engineering is provider-agnostic)
    - Minimal dependencies (just `requests`)
+
+### Migration from Gemini Flash
+
+Switched from Gemini Flash due to frequent 429 rate limit errors on the free tier (15 RPM cap). Groq's free tier is more permissive for development workloads. The prompt is provider-agnostic so no prompt changes were needed — only the HTTP call shape changed (OpenAI-compatible format vs. Gemini's `contents/parts` format).
 
 ### Limitations Accepted
 
 1. **Rate Limits**
-   - 15 RPM = max 15 concurrent plan generations/minute
-   - Mitigation: Fallback narrative if quota exceeded
+   - Free tier limits apply; fallback narrative activates on 429
    - Scale fix: Upgrade to paid tier or implement request queuing
 
 2. **No Streaming**
-   - User waits for complete response (2-5 seconds)
+   - User waits for complete response (~1 second)
    - No progressive text display
    - Acceptable for short narratives (500 tokens max)
 
@@ -202,7 +211,7 @@ Users can **make informed decisions** knowing which parts of their plan are data
    - Deterministic data (warnings, thresholds) is already in response
 
 4. **No Fine-Tuning**
-   - Generic Gemini model, not tuned for relocation advice
+   - Generic Llama model, not tuned for relocation advice
    - Prompt engineering handles domain knowledge
    - Acceptable for MVP; fine-tuning ROI unclear
 
@@ -220,29 +229,27 @@ Template-based narrative uses same input data as LLM:
 
 ---
 
-## 5. Scale Assumption That Breaks: SQLite Write Locks
+## 5. Scale: PostgreSQL + Async Task Queue Path
 
-### Current Architecture (Works for <10 concurrent users)
+### Current Architecture (Works for moderate concurrent load)
 
 ```
-User Request → Flask → SQLAlchemy → SQLite → Single write lock
+User Request → Flask → SQLAlchemy → PostgreSQL → MVCC concurrent writes
 ```
 
-**SQLite limitation**: Only **one writer at a time**
+PostgreSQL handles concurrent writes via MVCC — the write-lock bottleneck from SQLite is already resolved.
 
-### What Breaks Under Concurrent Load
+### What Breaks Next Under High Concurrent Load
 
-**Scenario**: 50 users generate plans simultaneously
-1. Request 1 starts plan generation → acquires write lock
-2. Request 2-50 arrive → **blocked waiting for lock**
-3. Lock timeout (~5 seconds) → users see "database is locked" errors
-4. Poor UX: requests serialize instead of parallelizing
+**Scenario**: 500 users generate plans simultaneously
+1. Each request blocks for ~1 second waiting on Groq API
+2. Flask dev server is single-threaded → requests queue
+3. Gunicorn with `-w 4` handles ~4 concurrent requests
+4. Beyond that: users wait or timeout on LLM calls
 
-**Root cause**: SQLite is file-based, not a concurrent database server
+### Migration Path to Scale Further
 
-### Migration Path to Scale
-
-**Replace SQLite → PostgreSQL + async task queue**
+**Add async task queue for LLM calls**
 
 ```
 User Request → Flask → Celery → Redis (queue) → Worker → Postgres
