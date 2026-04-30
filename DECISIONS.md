@@ -259,33 +259,29 @@ User Request → Flask → Celery → Redis (queue) → Worker → Postgres
 
 **Changes needed:**
 
-1. **PostgreSQL + Connection Pooling**
-   ```python
-   SQLALCHEMY_DATABASE_URI = 'postgresql://user:pass@host/db'
-   SQLALCHEMY_POOL_SIZE = 20
-   SQLALCHEMY_MAX_OVERFLOW = 40
-   ```
-   - Concurrent reads/writes with MVCC (Multi-Version Concurrency Control)
-   - No write locks between transactions
-
-2. **Celery Task Queue**
+1. **Celery Task Queue**
    ```python
    @celery.task
    def generate_plan_async(user_id, plan_params):
-       # Call LLM (can take 2-5 seconds)
+       # Call Groq (~1 second)
        # Write to Postgres
        return plan_id
    ```
-   - Offload LLM API call to background worker
+   - Offload Groq API call to background worker
    - API returns immediately with `plan_id` and `status=pending`
 
-3. **Status Polling or WebSocket**
+2. **Status Polling or WebSocket**
    ```python
    GET /api/plans/<id>
    # Returns: { "status": "pending" | "completed" | "failed" }
    ```
-   - Frontend polls every 2 seconds until `status=completed`
-   - Or: WebSocket push notification when plan ready
+   - Frontend polls until `status=completed`
+
+3. **Connection Pooling** (already supported by SQLAlchemy + psycopg)
+   ```python
+   SQLALCHEMY_POOL_SIZE = 20
+   SQLALCHEMY_MAX_OVERFLOW = 40
+   ```
 
 **Infrastructure**:
 - Redis for Celery message broker
@@ -355,8 +351,8 @@ The refactor cost is low upfront, high later (especially after tests are written
 
 These decisions optimized for:
 - ✅ **Correctness first**: Deterministic logic protects users from wrong visa/salary advice
-- ✅ **Fast MVP delivery**: SQLite, no email, no rate limiting, free LLM
-- ✅ **Clear upgrade path**: Postgres + Celery when scale demands it
+- ✅ **Fast MVP delivery**: PostgreSQL, no email, no rate limiting, free LLM (Groq)
+- ✅ **Clear upgrade path**: Celery + Redis when LLM concurrency demands it
 - ✅ **Honest trade-offs**: Every "skipped" feature has a documented reason
 
 **Key insight**: The LLM is a UI enhancement, not the brain of the system. The brain is `data_loader.py` + structured JSON files.
