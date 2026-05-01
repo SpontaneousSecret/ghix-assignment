@@ -13,9 +13,7 @@ createdb career_relocation
 
 # 3. Set environment variables (or create a .env file)
 GROQ_API_KEY=your-groq-api-key
-JWT_SECRET_KEY=your-secret-jwt-key
-SECRET_KEY=your-flask-secret-key
-DATABASE_URL=postgresql+psycopg://youruser@localhost:5432/career_relocation
+
 
 # 4. Start the server
 python3 run.py
@@ -23,7 +21,7 @@ python3 run.py
 
 Server runs on http://localhost:8006
 
-Frontend: open `index.html` directly or serve with `python3 -m http.server 8080`
+serve with `python3 -m http.server 8080`
 
 ---
 
@@ -32,16 +30,11 @@ Frontend: open `index.html` directly or serve with `python3 -m http.server 8080`
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `GROQ_API_KEY` | Optional | Groq API key for AI narratives. Falls back to template narrative if absent. |
-| `DATABASE_URL` | Optional | PostgreSQL connection string. Defaults to local `career_relocation` DB. |
-| `JWT_SECRET_KEY` | Optional | JWT signing secret. Defaults to dev key (change in production). |
-| `SECRET_KEY` | Optional | Flask secret key. Defaults to dev key (change in production). |
 
 `.env` file example:
 ```
 GROQ_API_KEY=gsk_...
-DATABASE_URL=postgresql+psycopg://user@localhost:5432/career_relocation
-JWT_SECRET_KEY=change-me-in-production
-SECRET_KEY=change-me-in-production
+
 ```
 
 ---
@@ -213,22 +206,3 @@ Destinations without a JSON file still work: the app uses global estimates and m
    - Zero code changes required
    - File naming: `{destination}_{role}.json` (lowercase, underscores)
 
-### Tech Stack
-
-- **Backend**: Flask, SQLAlchemy, PostgreSQL, PyJWT, bcrypt
-- **Frontend**: Vanilla JavaScript, HTML5, CSS3
-- **LLM**: Groq — llama-3.3-70b-versatile (free tier, REST API)
-- **Database**: PostgreSQL (psycopg driver)
-
----
-
-## Documentation
-
-- **DECISIONS.md** - Technical decisions, trade-offs, scale limitations
-- **SETUP.md** - Detailed setup guide, troubleshooting
-
----
-
-## License
-
-Private project - All rights reserved
